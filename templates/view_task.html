@@ -1,10 +1,5 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Tipsy</title>
-        <link rel="stylesheet" href="/static/css/bootstrap.css" type="text/css">
-    </head>
-    <body>
+{% extends "layout.html" %}
+{% block body %}
         <div class="container">
             <h1>Task {{ task['id'] }} &mdash; {% if task['completed_at'] %}<span class="status">Completed</span>{% endif %}</h1>
             <h2>{{ task['title'] }}</h2>
@@ -12,5 +7,4 @@
                 <input type="submit" value="Complete Task">
             </form>
         </div>
-    </body>
-</html>
+{% endblock %}

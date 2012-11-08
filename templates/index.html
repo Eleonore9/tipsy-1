@@ -1,12 +1,16 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Tipsy</title>
-        <link rel="stylesheet" href="/static/css/bootstrap.css" type="text/css">
-    </head>
-    <body>
+{% extends "layout.html" %}
+
+{% block body %}
+<div class="background_body">
         <div class="container">
-            <h1>Tipsy - A lightweight tasklist</h1>
+            <h1>Welcome to Tipsy </h1>
+
+            <h3>A lightweight tasklist</h3>
         </div>
-    </body>
-</html>
+
+        <div class="btn_login">
+        <a href="{{ url_for("login") }}" class="btn btn-success">Log in</a>
+    	</div>
+</div>
+{% endblock %}
+
