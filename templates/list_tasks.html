@@ -7,10 +7,9 @@
             <ul>
             {% for task in tasks %}
                 <li>
-                <a href="{{ url_for("view_task", id=task['id']) }}">Task {{ 
-                task['id'] }}</a>: 
-                {{ task['title'] }}
-                {% if task['completed_at'] %} &mdash; Completed
+                <a href="{{ url_for("view_task", id=task.id) }}">Task {{ 
+                task.id }}</a>: {{ task.title }}
+                {% if task.completed_at %} &mdash; Completed
                 {% endif %}
                 </li>
             {% endfor %}

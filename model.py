@@ -2,92 +2,163 @@
 model.py
 """
 import sqlite3
+import datetime, time
+
+#now that we have classes, we don't need these gobal variables:
+# TASK_COLS = ["id", "title", "created_at", "completed_at", "user_id"]
+# USER_COLS = ["id", "email", "password", "username"]
 
 def connect_db():
     return sqlite3.connect("tipsy.db")
 
-def new_user(db, email, password, name):          
-    c = db.cursor()                                     
-    query = """INSERT INTO Users VALUES (NULL, ?, ?, ?)"""                                                           
-    res = c.execute(query, (email, password, name))           
+def insert_into_table(db, table, columns, values):
+    c = db.cursor()
+    query_template = """INSERT INTO %s VALUES (%s)"""
+    num_cols = len(columns)
+    q_marks = ", ".join(["NULL"] + (["?"] * (num_cols-1)))
+    query = query_template%(table, q_marks)
+    res = c.execute(query, tuple(values))
     if res:
         db.commit()
         return res.lastrowid
 
-def make_user(row):
-    fields = ["id", "email", "password", "username"]
-    return dict(zip(fields, row))
-
-def authenticate(db, email, password):
+def get_from_table_by_id(db, table_name, id):
+    """Gets a dictionary out of the database given an id"""
     c = db.cursor()
-    query = """SELECT * from Users WHERE email=? AND password=?"""
-    c.execute(query, (email, password))
-    result = c.fetchone()
-    if result:
-        fields = ["id", "email", "password", "username"]
-        return make_user(result)
-
+    query_template = """SELECT * from %s WHERE id = ?"""
+    query = query_template%(TABLE_NAME)
+    c.execute(query, (id,))
+    row = c.fetchone()
+    if row:
+        if TABLE_NAME == "Users":
+            return make_user(row)
+        elif TABLE_NAME == "Tasks":
+            return make_task(row)
     return None
 
-def get_user(db, user_id):
-    """Gets a user dictionary out of the database given an id"""
-    c = db.cursor()
-    query = """SELECT * from Users WHERE id = ?"""
-    c.execute(query, (user_id,))
-    user_row = c.fetchone()
-    if user_row:
-        return make_user(user_row)
 
-    return None
 
-def new_task(db, title, user_id = None):
-    """Given a title and a user_id, create a new task belonging to that user. Return the id of the created task"""
-    c = db.cursor()
-    query = """INSERT into Tasks values (null, ?, DATETIME('now'), null, ?)"""
-    res = c.execute(query, (title, user_id))
-    if res:
-        db.commit()
-        return res.lastrowid
+#--------------------We define our User class--------------------------------------
 
-def complete_task(db, task_id):
-    """Mark the task with the given task_id as being complete."""
-    c = db.cursor()
-    query = """UPDATE Tasks SET completed_at=DATETIME('now') WHERE id=?"""
-    res = c.execute(query, (task_id,))
-    if res:
-        db.commit()
-        return res.lastrowid
-    else:
+class User(object):
+    #class attributes
+    COLS = ["id", "email", "password", "username"]
+    TABLE_NAME = "Users"
+
+    #class instantiation and instance attributes
+    def __init__(self, id, email, password, name):
+        self.id = id
+        self.email = email
+        self.password = password
+        self.name = name
+
+    #class methods (related to the class User and not a specific user)
+    @classmethod
+    def new(cls, db, email, password, name):          
+        vals = [email, password, name]
+        return insert_into_table(db, cls.TABLE_NAME, cls.COLS, vals)
+
+    @classmethod
+    def authenticate(cls, db, email, password):
+        c = db.cursor()
+        query = """SELECT * FROM %s WHERE email=? AND password=?"""%(cls.TABLE_NAME)
+        c.execute(query, (email, password))
+        result = c.fetchone()
+        if result:
+            return cls(*result)
         return None
 
-def get_tasks(db, user_id=None):
-    """Get all the tasks matching the user_id, getting all the tasks in the system if the user_id is not provided. Returns the results as a list of dictionaries."""
-    c = db.cursor()
-    if user_id:
-        query = """SELECT * from Tasks WHERE user_id = ?"""
+    @classmethod 
+    def get_user(cls, db, user_id):
+        """Creates an instance of the class User"""
+        # get_from_table_by_id(db, cls.TABLE_NAME, user_id)
+        # return cls(id=d_user["id"], email=d_user["email"], password=d_user["password"], name=d_user["username"])
+        # the return statement is +/- the same as this: user = User(id, email, password, name)
+        c = db.cursor()
+        query = """SELECT * FROM %s WHERE id=?"""%(cls.TABLE_NAME)
         c.execute(query, (user_id,))
-    else:
-        query = """SELECT * from Tasks"""
-        c.execute(query)
-    tasks = []
-    rows = c.fetchall()
-    for row in rows:
-        task = make_task(row)
-        tasks.append(task)
+        row = c.fetchone()
+        if row:
+            return cls(*row)
+        return None
 
-    return tasks
+    #instance method
+    def get_tasks(self, db, user_id):
+        """Get all the tasks matching the user_id, getting all the tasks 
+        in the system if the user_id is not provided. Returns the results 
+        as a list of dictionaries."""
+        c = db.cursor()
+        if self.id:
+            query = """SELECT * from "Tasks" WHERE user_id = ?"""
+            c.execute(query, (self.id,))
+        else:
+            query = """SELECT * from "Tasks" """
+            c.execute(query)
+        tasks = []
+        rows = c.fetchall()
+        for row in rows:
+            task = dict(zip(Task.COLS, row))
+            tasks.append(task)
+        return tasks
 
-def get_task(db, task_id):
-    """Gets a single task, given its id. Returns a dictionary of the task data."""
-    c = db.cursor()
-    query = """SELECT * from Tasks WHERE id = ?"""
-    c.execute(query, (task_id,))
-    task_row = c.fetchone()
-    if task_row:
-        return make_task(task_row)
+    # def make_task(self, row):
+    #     return dict(zip(self.COLS, row))
 
-    return None
+    # def make_user(self, row):
+    #     d_user = dict(zip(self.COLS, row))
+    #     return d_user
 
-def make_task(row):
-    columns = ["id", "title", "created_at", "completed_at", "user_id"]
-    return dict(zip(columns, row))
+
+#--------------We define our class Task----------------------------------------------
+
+class Task(object):
+
+    #class attributes
+    COLS = ["id", "title", "created_at", "completed_at", "user_id"]
+    TABLE_NAME = "Tasks"
+
+    #class instantiation and instance attributes
+    def __init__(self, id, title, created_at, completed_at, user_id):
+        self.id = id
+        self.title = title
+        self.created_at = created_at
+        self.completed_at = completed_at
+        self.user_id = user_id
+
+    #class method 
+    @classmethod
+    # def new(cls, db, title, user_id = None):
+    #     vals = [title, created_at, completed_at, user_id]
+    #     return insert_into_table(db, cls.TABLE_NAME, cls.COLS, vals)
+    def new(cls, db, title, user_id):
+        now = datetime.datetime.now()
+        vals = [title, now, None, user_id]
+        return insert_into_table(db, cls.TABLE_NAME, cls.COLS, vals)
+
+    @classmethod
+    def get_task(cls, db, task_id):
+        """Creates an instance of the class User"""
+        c = db.cursor()
+        query = """SELECT * FROM %s WHERE id=?"""%(cls.TABLE_NAME)
+        c.execute(query, (task_id,))
+        row = c.fetchone()
+        if row:
+            return cls(*row)
+        return None
+
+    #instance method
+    def complete_task(self, db, task_id):
+        """Mark the task with the given task_id as being complete."""
+        c = db.cursor()
+        now = datetime.datetime.now()
+        query = """UPDATE %s SET completed_at=DATETIME('now') WHERE id=?"""%(self.TABLE_NAME)
+        res = c.execute(query, (task_id,))
+        if res:
+            db.commit()
+            return res.lastrowid
+        else:
+            return None
+
+    
+
+    
